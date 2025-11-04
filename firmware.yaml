@@ -1,0 +1,573 @@
+# NOUS D3T 25A Smart Switch
+# Hardware: ESP32 + BL0942 Energy Monitor + Relay Control
+# https://github.com/[your-username]/nous-d3t-esphome
+
+substitutions:
+  device_name: "nous-d3t"
+  friendly_name: "NOUS D3T"
+  device_description: "NOUS D3T 25A Smart Switch with Energy Monitoring"
+  
+  # Pin Configuration
+  uart_tx_pin: GPIO14
+  uart_rx_pin: GPIO13
+  relay_1_pin: GPIO2
+  relay_2_pin: GPIO12
+  button_pin: GPIO0
+  red_led_pin: GPIO5
+  status_led_pin: GPIO15
+  temp_sensor_pin: GPIO34
+  
+  # Sensor Update Intervals - OPTIMIZED
+  bl0942_update_interval: 1s          # Fast hardware reading for quick protections
+  reporting_interval: 5s              # Throttle reporting to Home Assistant
+  calculated_update_interval: 5s      # Template sensors update interval
+  wifi_update_interval: 60s
+  
+  # Default Protection Thresholds (can be changed from Home Assistant)
+  default_max_temp: "45.0"
+  default_max_current: "25.0"  # Amperes
+  default_max_voltage: "253.0"  # Volts
+  default_min_voltage: "180.0"  # Volts
+
+# ============================================
+# BASIC CONFIGURATION
+# ============================================
+
+esphome:
+  name: "${device_name}"
+  friendly_name: "${friendly_name}"
+  comment: "${device_description}"
+  project:
+    name: "NOUS.D3T"
+    version: "1.5.1"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    # Reduce CPU frequency pentru economie energie
+    sdkconfig_options:
+      # CPU Frequency
+      CONFIG_ESP32_DEFAULT_CPU_FREQ_160: y
+
+# ============================================
+# CONNECTIVITY
+# ============================================
+
+logger:
+  level: WARN  # Reduce logging pentru economie
+  baud_rate: 0  # Disable UART logging to avoid conflicts
+  logs:
+    sensor: ERROR
+    binary_sensor: ERROR
+
+api:
+  reboot_timeout: 0s
+    
+
+ota:
+  - platform: esphome
+
+wifi:
+  # Enable fallback hotspot
+  ap:
+    ssid: "${friendly_name} Hotspot"
+    password: "setup1234"
+  # Power save mode for stability
+  power_save_mode: light
+
+captive_portal:
+
+# Web server disabled for power saving
+web_server:
+  port: 80
+  log: True
+# ============================================
+# CONFIGURABLE PROTECTION THRESHOLDS
+# ============================================
+
+number:
+  - platform: template
+    name: "Max Temperature Threshold"
+    id: max_temp_threshold
+    icon: mdi:thermometer-alert
+    entity_category: config
+    optimistic: true
+    min_value: 30
+    max_value: 80
+    initial_value: ${default_max_temp}
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+    restore_value: true
+    on_value:
+      then:
+        - logger.log:
+            format: "Max temperature threshold set to %.1f°C"
+            args: ['x']
+  
+ 
+  - platform: template
+    name: "Max Current Threshold"
+    id: max_current_threshold
+    icon: mdi:current-ac
+    entity_category: config
+    optimistic: true
+    min_value: 1
+    max_value: 30
+    initial_value: ${default_max_current}
+    step: 0.5
+    unit_of_measurement: "A"
+    mode: box
+    restore_value: true
+    on_value:
+      then:
+        - logger.log:
+            format: "Max current threshold set to %.1fA"
+            args: ['x']
+  
+  - platform: template
+    name: "Max Voltage Threshold"
+    id: max_voltage_threshold
+    icon: mdi:flash-alert
+    entity_category: config
+    optimistic: true
+    min_value: 240
+    max_value: 270
+    initial_value: ${default_max_voltage}
+    step: 1
+    unit_of_measurement: "V"
+    mode: box
+    restore_value: true
+    on_value:
+      then:
+        - logger.log:
+            format: "Max voltage threshold set to %.0fV"
+            args: ['x']
+  
+  - platform: template
+    name: "Min Voltage Threshold"
+    id: min_voltage_threshold
+    icon: mdi:flash-alert-outline
+    entity_category: config
+    optimistic: true
+    min_value: 150
+    max_value: 200
+    initial_value: ${default_min_voltage}
+    step: 1
+    unit_of_measurement: "V"
+    mode: box
+    restore_value: true
+    on_value:
+      then:
+        - logger.log:
+            format: "Min voltage threshold set to %.0fV"
+            args: ['x']
+
+# ============================================
+# ENERGY MONITORING (BL0942)
+# ============================================
+
+uart:
+  tx_pin: ${uart_tx_pin}
+  rx_pin: ${uart_rx_pin}
+  baud_rate: 4800
+  parity: NONE
+  stop_bits: 2
+
+sensor:
+  # BL0942 Energy Monitor - Fast reading (1s) for quick protections
+  - platform: bl0942
+    update_interval: ${bl0942_update_interval}
+    
+    voltage:
+      name: "Voltage"
+      id: voltage_sensor
+      unit_of_measurement: V
+      accuracy_decimals: 1
+      device_class: voltage
+      state_class: measurement
+      filters:
+        - throttle_average: ${reporting_interval}  # Report average every 5s
+      on_value:
+        then:
+          - if:
+              condition:
+                lambda: 'return x > id(max_voltage_threshold).state;'
+              then:
+                - switch.turn_off: main_relay
+                - logger.log:
+                    format: "CRITICAL: Overvoltage detected! %.1fV > %.1fV - Relay disabled."
+                    args: ['x', 'id(max_voltage_threshold).state']
+                - homeassistant.event:
+                    event: esphome.overvoltage
+                    data:
+                      device: "${friendly_name}"
+                      voltage: !lambda 'return x;'
+                      threshold: !lambda 'return id(max_voltage_threshold).state;'
+          - if:
+              condition:
+                lambda: 'return x < id(min_voltage_threshold).state;'
+              then:
+                - switch.turn_off: main_relay
+                - logger.log:
+                    format: "CRITICAL: Undervoltage detected! %.1fV < %.1fV - Relay disabled."
+                    args: ['x', 'id(min_voltage_threshold).state']
+                - homeassistant.event:
+                    event: esphome.undervoltage
+                    data:
+                      device: "${friendly_name}"
+                      voltage: !lambda 'return x;'
+                      threshold: !lambda 'return id(min_voltage_threshold).state;'
+    
+    current:
+      name: "Current"
+      id: current_sensor
+      unit_of_measurement: A
+      accuracy_decimals: 2
+      device_class: current
+      state_class: measurement
+      filters:
+        - throttle_average: ${reporting_interval}  # Report average every 5s
+      on_value:
+        then:
+          - if:
+              condition:
+                lambda: 'return x > id(max_current_threshold).state;'
+              then:
+                - switch.turn_off: main_relay
+                - logger.log:
+                    format: "CRITICAL: Overcurrent detected! %.2fA > %.2fA - Relay disabled."
+                    args: ['x', 'id(max_current_threshold).state']
+                - homeassistant.event:
+                    event: esphome.overcurrent
+                    data:
+                      device: "${friendly_name}"
+                      current: !lambda 'return x;'
+                      threshold: !lambda 'return id(max_current_threshold).state;'
+    
+    power:
+      name: "Power"
+      id: power_sensor
+      unit_of_measurement: W
+      accuracy_decimals: 0
+      device_class: power
+      state_class: measurement
+      filters:
+        - throttle_average: ${reporting_interval}  # Report average every 5s
+    
+    energy:
+      name: "Energy"
+      id: energy_sensor
+      unit_of_measurement: kWh
+      accuracy_decimals: 3
+      device_class: energy
+      state_class: total_increasing
+      filters:
+        - multiply: 0.001  # Convert Wh to kWh
+    
+    frequency:
+      name: "Frequency"
+      unit_of_measurement: Hz
+      accuracy_decimals: 1
+      device_class: frequency
+      state_class: measurement
+      filters:
+        - throttle_average: 5s
+
+  # ============================================
+  # TEMPERATURE MONITORING (NTC)
+  # ============================================
+  
+  - platform: adc
+    id: temp_analog_reading
+    pin: ${temp_sensor_pin}
+    attenuation: 12db
+    update_interval: 5s
+    internal: true
+  
+  - platform: resistance
+    id: temp_resistance_reading
+    sensor: temp_analog_reading
+    configuration: DOWNSTREAM
+    resistor: 5.6kOhm
+    internal: true
+  
+  - platform: ntc
+    sensor: temp_resistance_reading
+    name: "Temperature"
+    id: internal_temperature
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: temperature
+    state_class: measurement
+    icon: mdi:thermometer
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+    filters:
+      - median:
+          window_size: 7
+          send_every: 4
+          send_first_at: 2
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return x > id(max_temp_threshold).state;'
+            then:
+              - switch.turn_off: main_relay
+              - logger.log:
+                  format: "CRITICAL: Overheating detected! %.1f°C > %.1f°C - Relay disabled."
+                  args: ['x', 'id(max_temp_threshold).state']
+              - homeassistant.event:
+                  event: esphome.overheat
+                  data:
+                    device: "${friendly_name}"
+                    temperature: !lambda 'return x;'
+                    threshold: !lambda 'return id(max_temp_threshold).state;'
+
+  # ============================================
+  # CALCULATED SENSORS - Update less frequently
+  # ============================================
+  
+  - platform: template
+    name: "Apparent Power"
+    id: apparent_power
+    unit_of_measurement: VA
+    accuracy_decimals: 0
+    device_class: apparent_power
+    state_class: measurement
+    lambda: |-
+      return id(voltage_sensor).state * id(current_sensor).state;
+    update_interval: ${calculated_update_interval}
+  
+  - platform: template
+    name: "Reactive Power"
+    id: reactive_power
+    unit_of_measurement: VAR
+    accuracy_decimals: 0
+    device_class: reactive_power
+    state_class: measurement
+    icon: mdi:flash-outline
+    lambda: |-
+      float apparent = id(apparent_power).state;
+      float active = id(power_sensor).state;
+      if (apparent > 0) {
+        float reactive = sqrt(apparent * apparent - active * active);
+        return reactive;
+      } else {
+        return 0.0;
+      }
+    update_interval: ${calculated_update_interval}
+  
+  - platform: template
+    name: "Power Factor"
+    id: power_factor
+    accuracy_decimals: 2
+    device_class: power_factor
+    state_class: measurement
+    lambda: |-
+      if (id(apparent_power).state > 0) {
+        return id(power_sensor).state / id(apparent_power).state;
+      } else {
+        return 0.0;
+      }
+    update_interval: ${calculated_update_interval}
+    filters:
+      - clamp:
+          min_value: 0.0
+          max_value: 1.0
+
+  # ============================================
+  # SYSTEM MONITORING
+  # ============================================
+  
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    id: wifi_signal_db
+    update_interval: ${wifi_update_interval}
+    entity_category: diagnostic
+  
+  - platform: uptime
+    name: "Uptime"
+    id: uptime_sensor
+    update_interval: 60s
+    entity_category: diagnostic
+
+# ============================================
+# TEXT SENSORS
+# ============================================
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: diagnostic
+    ssid:
+      name: "Connected SSID"
+      entity_category: diagnostic
+    mac_address:
+      name: "MAC Address"
+      entity_category: diagnostic
+  
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+    hide_timestamp: true
+
+# ============================================
+# OUTPUTS & LIGHTS
+# ============================================
+
+output:
+  - platform: gpio
+    id: relay_1
+    pin: 
+      number: ${relay_1_pin}
+      ignore_strapping_warning: true
+  
+  - platform: gpio
+    id: relay_2
+    pin: 
+      number: ${relay_2_pin}
+      ignore_strapping_warning: true      
+  
+  - platform: gpio
+    id: red_led
+    pin:
+      number: ${red_led_pin}
+      inverted: true
+      ignore_strapping_warning: true
+
+light:
+  - platform: binary
+    output: red_led
+    id: red_light_led
+    internal: true
+  
+  - platform: status_led
+    name: "Status LED"
+    id: led_status
+    pin:
+      number: ${status_led_pin}
+      inverted: true
+      ignore_strapping_warning: true
+    entity_category: config
+    internal: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+# ============================================
+# SWITCHES
+# ============================================
+
+switch:
+  - platform: template
+    name: "Switch"
+    id: main_relay
+    icon: "mdi:power"
+    device_class: switch
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    
+    turn_on_action:
+      - if:
+          condition:
+            lambda: 'return id(internal_temperature).state < id(max_temp_threshold).state;'
+          then:
+            - output.turn_off: relay_1
+            - delay: 50ms
+            - output.turn_on: relay_2
+            - light.turn_on: red_light_led
+            - logger.log: "Relay turned ON"
+          else:
+            - logger.log:
+                format: "Cannot turn on: Temperature %.1f°C exceeds threshold %.1f°C"
+                args: ['id(internal_temperature).state', 'id(max_temp_threshold).state']
+            - homeassistant.service:
+                service: persistent_notification.create
+                data:
+                  title: "Safety Lock - Temperature"
+                  message: !lambda |-
+                    return "Cannot turn on " + std::string("${friendly_name}") + " - Temperature " + 
+                           to_string(id(internal_temperature).state) + "°C exceeds threshold " + 
+                           to_string(id(max_temp_threshold).state) + "°C";
+    
+    turn_off_action:
+      - output.turn_on: relay_1
+      - delay: 50ms
+      - output.turn_off: relay_2
+      - light.turn_off: red_light_led
+      - delay: 100ms 
+      - output.turn_off: relay_1
+      - logger.log: "Relay turned OFF"
+
+  # Restart switch
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+    icon: mdi:restart
+    id: restart_button
+
+# ============================================
+# BUTTONS
+# ============================================
+
+button:
+  - platform: safe_mode
+    name: "Safe Mode Boot"
+    entity_category: config
+  
+  - platform: factory_reset
+    name: "Factory Reset"
+    entity_category: config
+    disabled_by_default: true
+  
+  - platform: template
+    name: "Reset Protection Thresholds"
+    entity_category: config
+    icon: mdi:restore
+    on_press:
+      - number.set:
+          id: max_temp_threshold
+          value: ${default_max_temp}
+      - number.set:
+          id: max_current_threshold
+          value: ${default_max_current}
+      - number.set:
+          id: max_voltage_threshold
+          value: ${default_max_voltage}
+      - number.set:
+          id: min_voltage_threshold
+          value: ${default_min_voltage}
+      - logger.log: "All protection thresholds reset to defaults"
+
+
+# ============================================
+# PHYSICAL BUTTON
+# ============================================
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: ${button_pin}
+      ignore_strapping_warning: true
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    id: physical_button
+    name: "Button"
+    internal: true
+    entity_category: diagnostic
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      - switch.toggle: main_relay
+    on_click:
+      - min_length: 5000ms
+        max_length: 10000ms
+        then:
+          - logger.log: "Long press detected - Restarting device"
