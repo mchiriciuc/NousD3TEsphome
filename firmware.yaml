@@ -25,7 +25,7 @@ substitutions:
 
   #BL0942 calibration data
   voltage_calibration: "16024.5" 
-  current_calibration: "127074.8" #"130630.9"
+  current_calibration: "127074.8"
 
 # ============================================
 # GLOBAL VARIABLES
