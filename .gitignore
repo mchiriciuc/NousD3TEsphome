@@ -1,0 +1,47 @@
+# ESPHome
+.esphome/
+secrets.yaml
+*.bin
+*.elf
+*.map
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+.*.tmp
+
+# Device specific configs (keep examples)
+# Uncomment if you want to ignore your local device configs
+# *-switch.yaml
+# !examples/*
+
+# Local test files
+test-*.yaml
+local-*.yaml

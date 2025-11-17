@@ -1,0 +1,39 @@
+# Example Device Configuration - Office Switch
+# This example shows using a LOCAL file reference
+# Useful when developing or testing locally
+
+substitutions:
+  # Device identification
+  device_name: "office-switch"
+  friendly_name: "Office Switch"
+  device_description: "NOUS D3T Smart Switch - Office"
+  
+  # Calibration values for this device
+  voltage_calibration: "16100.8"
+  current_calibration: "128000.5"
+  
+  # Office-specific thresholds (conservative for computers)
+  default_max_temp: "45.0"
+  default_max_current: "15.0"  # Lower limit for sensitive equipment
+  default_max_voltage: "245.0"  # Tighter voltage window
+  default_min_voltage: "210.0"
+
+# Import from LOCAL file (use when testing/developing)
+# Comment this out and use the GitHub import for production
+packages:
+  nous_d3t: !include ../firmware.yaml
+
+# For production, use GitHub import instead:
+# packages:
+#   nous_d3t: github://mchiriciuc/NousD3TEsphome/firmware.yaml@main
+
+# WiFi credentials
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# Optional: Add static IP for office equipment
+#   manual_ip:
+#     static_ip: 192.168.1.100
+#     gateway: 192.168.1.1
+#     subnet: 255.255.255.0

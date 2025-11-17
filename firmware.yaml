@@ -1,13 +1,18 @@
-# NOUS D3T 25A Smart Switch
+# NOUS D3T 25A Smart Switch - Base Configuration
 # Hardware: ESP32 + BL0942 Energy Monitor + Relay Control
 # https://github.com/mchiriciuc/NousD3TEsphome
+
+# Dashboard Import Configuration
+dashboard_import:
+  package_import_url: github://mchiriciuc/NousD3TEsphome/firmware.yaml@main
+  import_full_config: false
 
 substitutions:
   device_name: "nous-d3t"
   friendly_name: "NOUS D3T"
   device_description: "NOUS D3T Smart Switch with Energy Monitoring"
   
-  # Pin Configuration
+  # Pin Configuration - Standard for NOUS D3T hardware
   uart_tx_pin: GPIO14
   uart_rx_pin: GPIO13
   relay_on_pin: GPIO2
@@ -23,7 +28,9 @@ substitutions:
   default_max_voltage: "253.0"  # Volts
   default_min_voltage: "150.0"  # Volts
 
-  #BL0942 calibration data
+  # BL0942 calibration data - DEVICE SPECIFIC
+  # These values should be calibrated for each individual device
+  # Default values provided, but should be tuned for accuracy
   voltage_calibration: "16024.5" 
   current_calibration: "127074.8"
 
@@ -45,9 +52,10 @@ esphome:
   name: "${device_name}"
   friendly_name: "${friendly_name}"
   comment: "${device_description}"
+  name_add_mac_suffix: false
   project:
-    name: "NOUS.D3T"
-    version: "1.5.1"
+    name: "nous.d3t-25a"
+    version: "2.0.0"
   on_boot: 
     then:
       - lambda: |-
@@ -92,8 +100,6 @@ ota:
   - platform: esphome
 
 wifi:
-  ssid: !secret wifi_ssid_casa
-  password: !secret wifi_password
   # Enable fallback hotspot
   ap:
     ssid: "${friendly_name} Hotspot"
@@ -101,7 +107,7 @@ wifi:
 
 captive_portal:
 
-# Web server disabled for power saving
+# Web server for configuration and monitoring
 web_server:
   port: 80
   log: True

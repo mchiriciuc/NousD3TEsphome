@@ -1,0 +1,29 @@
+# Example Device Configuration - Garage Switch
+# Different device with different calibration values
+# Shows how each device can have unique settings
+
+substitutions:
+  # Device identification
+  device_name: "garage-switch"
+  friendly_name: "Garage Switch"
+  device_description: "NOUS D3T Smart Switch - Garage"
+  
+  # Calibration values for this specific device
+  # Note: These are different from the kitchen switch
+  voltage_calibration: "15980.2"
+  current_calibration: "126500.0"
+  
+  # Garage-specific thresholds (higher for power tools)
+  default_max_temp: "45.0"
+  default_max_current: "25.0"  # Full 25A capacity
+  default_max_voltage: "253.0"
+  default_min_voltage: "190.0"
+
+# Import the base configuration from GitHub
+packages:
+  nous_d3t: github://mchiriciuc/NousD3TEsphome/firmware.yaml@main
+
+# WiFi credentials
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password

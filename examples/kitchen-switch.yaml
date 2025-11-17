@@ -1,0 +1,33 @@
+# Example Device Configuration - Kitchen Switch
+# This shows how to create a device-specific configuration
+# using the base firmware.yaml with custom calibration values
+
+substitutions:
+  # Device identification
+  device_name: "kitchen-switch"
+  friendly_name: "Kitchen Switch"
+  device_description: "NOUS D3T Smart Switch - Kitchen"
+  
+  # IMPORTANT: Calibration values specific to this device
+  # These should be determined through calibration process
+  voltage_calibration: "16024.5"
+  current_calibration: "127074.8"
+  
+  # Optional: Custom protection thresholds
+  default_max_temp: "50.0"
+  default_max_current: "20.0"
+  default_max_voltage: "250.0"
+  default_min_voltage: "200.0"
+
+# Import the base configuration from GitHub
+packages:
+  nous_d3t: github://mchiriciuc/NousD3TEsphome/firmware.yaml@main
+
+# WiFi credentials
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# Optional: Override logger level if needed
+# logger:
+#   level: INFO
