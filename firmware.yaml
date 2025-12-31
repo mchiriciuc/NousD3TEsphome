@@ -26,7 +26,7 @@ substitutions:
   default_max_temp: "45.0"
   default_max_current: "25.0"  # Amperes
   default_max_voltage: "253.0"  # Volts
-  default_min_voltage: "150.0"  # Volts
+  default_min_voltage: "0.0"  # Volts
 
   # BL0942 calibration data - DEVICE SPECIFIC
   # These values should be calibrated for each individual device
