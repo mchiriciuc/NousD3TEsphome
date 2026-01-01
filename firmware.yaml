@@ -299,7 +299,7 @@ sensor:
     name: "Reactive Power"
     id: reactive_power
     icon: "mdi:flash-outline"
-    unit_of_measurement: VAR
+    unit_of_measurement: var
     accuracy_decimals: 0
     device_class: reactive_power
     state_class: measurement
