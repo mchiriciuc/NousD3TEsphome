@@ -102,7 +102,6 @@ ota:
 wifi:
   # Enable fallback hotspot
   ap:
-    power_save_mode: none
 
 captive_portal:
 
