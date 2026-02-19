@@ -52,7 +52,7 @@ esphome:
   name: "${device_name}"
   friendly_name: "${friendly_name}"
   comment: "${device_description}"
-  name_add_mac_suffix: false
+  name_add_mac_suffix: true
   project:
     name: "nous.d3t-25a"
     version: "2.0.0"
