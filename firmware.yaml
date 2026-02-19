@@ -102,8 +102,7 @@ ota:
 wifi:
   # Enable fallback hotspot
   ap:
-    ssid: "${friendly_name} Hotspot"
-    password: "setup1234"
+    power_save_mode: none
 
 captive_portal:
 
