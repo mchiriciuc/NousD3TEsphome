@@ -88,8 +88,8 @@ esp32:
   framework:
     type: esp-idf
 
-# TEMPORAR (diagnostic): interval lung, ca flush-ul periodic sa nu mai poata
-# masca efectul lui sync(). De scos dupa test.
+# Dezactiveaza temporizarea scrierii in flash: fara asta, o stare schimbata
+# si o intrerupere de alimentare in urmatorul minut se pierdeau.
 preferences:
   flash_write_interval: never
 
@@ -473,10 +473,6 @@ script:
                   - logger.log: "Relay turned ON"
                   - lambda: 'id(switch_last_state)=true;'
                   # sync explicit: o iteratie de loop, apoi flush in NVS
-                  - delay: 100ms
-                  - lambda: |-
-                      ESP_LOGW("synctest", "sync() [relay ON] -> %s",
-                               global_preferences->sync() ? "OK" : "FAIL");
                 else:
                   - output.turn_on: relay_1
                   - delay: 50ms
@@ -487,10 +483,6 @@ script:
                   - logger.log: "Relay turned OFF"
                   - lambda: 'id(switch_last_state)=false;'
                   # sync explicit: o iteratie de loop, apoi flush in NVS
-                  - delay: 100ms
-                  - lambda: |-
-                      ESP_LOGW("synctest", "sync() [relay OFF] -> %s",
-                               global_preferences->sync() ? "OK" : "FAIL");
 
 # ============================================
 # SWITCHES
@@ -504,16 +496,6 @@ switch:
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
     entity_category: config
-    on_turn_on:
-      - delay: 100ms
-      - lambda: |-
-          ESP_LOGW("synctest", "sync() [remember ON] -> %s",
-                   global_preferences->sync() ? "OK" : "FAIL");
-    on_turn_off:
-      - delay: 100ms
-      - lambda: |-
-          ESP_LOGW("synctest", "sync() [remember OFF] -> %s",
-                   global_preferences->sync() ? "OK" : "FAIL");
 
   - platform: template
     name: "Switch"
@@ -621,10 +603,6 @@ number:
         - logger.log:
             format: "Max temperature threshold set to %.1f°C"
             args: ['x']
-        - delay: 100ms
-        - lambda: |-
-            ESP_LOGW("synctest", "sync() [max temp] -> %s",
-                     global_preferences->sync() ? "OK" : "FAIL");
   
  
   - platform: template
@@ -645,10 +623,6 @@ number:
         - logger.log:
             format: "Max current threshold set to %.1fA"
             args: ['x']
-        - delay: 100ms
-        - lambda: |-
-            ESP_LOGW("synctest", "sync() [max current] -> %s",
-                     global_preferences->sync() ? "OK" : "FAIL");
   
   - platform: template
     name: "Max Voltage Threshold"
@@ -668,10 +642,6 @@ number:
         - logger.log:
             format: "Max voltage threshold set to %.0fV"
             args: ['x']
-        - delay: 100ms
-        - lambda: |-
-            ESP_LOGW("synctest", "sync() [max voltage] -> %s",
-                     global_preferences->sync() ? "OK" : "FAIL");
   
   - platform: template
     name: "Min Voltage Threshold"
@@ -691,7 +661,3 @@ number:
         - logger.log:
             format: "Min voltage threshold set to %.0fV"
             args: ['x']
-        - delay: 100ms
-        - lambda: |-
-            ESP_LOGW("synctest", "sync() [min voltage] -> %s",
-                     global_preferences->sync() ? "OK" : "FAIL");
