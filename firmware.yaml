@@ -88,6 +88,12 @@ esp32:
   framework:
     type: esp-idf
 
+# Intervalul implicit de scriere in flash e 60s, prea lung: o stare schimbata
+# si un reboot rapid dupa se pierdeau. NVS are wear leveling, iar scrierile din
+# acelasi interval se comaseaza intr-o singura operatie.
+preferences:
+  flash_write_interval: 5s
+
 
 # ============================================
 # CONNECTIVITY
@@ -467,11 +473,6 @@ script:
                   - light.turn_on: red_light_led
                   - logger.log: "Relay turned ON"
                   - lambda: 'id(switch_last_state)=true;'
-                  # FIX: RestoringGlobalsComponent muta valoarea in obiectul de
-                  # preferinte abia in loop(), deci sync() trebuie sa vina dupa
-                  # cel putin o iteratie - altfel s-ar salva valoarea veche
-                  - delay: 100ms
-                  - lambda: 'global_preferences->sync();'
                 else:
                   - output.turn_on: relay_1
                   - delay: 50ms
@@ -481,9 +482,6 @@ script:
                   - output.turn_off: relay_1
                   - logger.log: "Relay turned OFF"
                   - lambda: 'id(switch_last_state)=false;'
-                  # FIX: acelasi motiv ca pe ramura ON
-                  - delay: 100ms
-                  - lambda: 'global_preferences->sync();'
 
 # ============================================
 # SWITCHES
@@ -497,15 +495,6 @@ switch:
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
     entity_category: config
-    # FIX: starea switch-ului ajungea in NVS abia la flush-ul periodic (60s),
-    # deci un reboot mai devreme o pierdea. Acelasi tratament ca la
-    # switch_last_state - o iteratie de loop, apoi sync explicit.
-    on_turn_on:
-      - delay: 100ms
-      - lambda: 'global_preferences->sync();'
-    on_turn_off:
-      - delay: 100ms
-      - lambda: 'global_preferences->sync();'
 
   - platform: template
     name: "Switch"
@@ -607,10 +596,6 @@ number:
         - logger.log:
             format: "Max temperature threshold set to %.1f°C"
             args: ['x']
-        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
-        # reboot in primele 60s (interval implicit de scriere in flash)
-        - delay: 100ms
-        - lambda: 'global_preferences->sync();'
   
  
   - platform: template
@@ -631,10 +616,6 @@ number:
         - logger.log:
             format: "Max current threshold set to %.1fA"
             args: ['x']
-        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
-        # reboot in primele 60s (interval implicit de scriere in flash)
-        - delay: 100ms
-        - lambda: 'global_preferences->sync();'
   
   - platform: template
     name: "Max Voltage Threshold"
@@ -654,10 +635,6 @@ number:
         - logger.log:
             format: "Max voltage threshold set to %.0fV"
             args: ['x']
-        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
-        # reboot in primele 60s (interval implicit de scriere in flash)
-        - delay: 100ms
-        - lambda: 'global_preferences->sync();'
   
   - platform: template
     name: "Min Voltage Threshold"
@@ -677,7 +654,3 @@ number:
         - logger.log:
             format: "Min voltage threshold set to %.0fV"
             args: ['x']
-        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
-        # reboot in primele 60s (interval implicit de scriere in flash)
-        - delay: 100ms
-        - lambda: 'global_preferences->sync();'
