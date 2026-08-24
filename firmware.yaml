@@ -496,7 +496,17 @@ switch:
     device_class: switch
     optimistic: True
     restore_mode: RESTORE_DEFAULT_OFF
-    entity_category: config        
+    entity_category: config
+    # FIX: starea switch-ului ajungea in NVS abia la flush-ul periodic (60s),
+    # deci un reboot mai devreme o pierdea. Acelasi tratament ca la
+    # switch_last_state - o iteratie de loop, apoi sync explicit.
+    on_turn_on:
+      - delay: 100ms
+      - lambda: 'global_preferences->sync();'
+    on_turn_off:
+      - delay: 100ms
+      - lambda: 'global_preferences->sync();'
+
   - platform: template
     name: "Switch"
     id: main_relay
@@ -597,6 +607,10 @@ number:
         - logger.log:
             format: "Max temperature threshold set to %.1f°C"
             args: ['x']
+        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
+        # reboot in primele 60s (interval implicit de scriere in flash)
+        - delay: 100ms
+        - lambda: 'global_preferences->sync();'
   
  
   - platform: template
@@ -617,6 +631,10 @@ number:
         - logger.log:
             format: "Max current threshold set to %.1fA"
             args: ['x']
+        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
+        # reboot in primele 60s (interval implicit de scriere in flash)
+        - delay: 100ms
+        - lambda: 'global_preferences->sync();'
   
   - platform: template
     name: "Max Voltage Threshold"
@@ -636,6 +654,10 @@ number:
         - logger.log:
             format: "Max voltage threshold set to %.0fV"
             args: ['x']
+        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
+        # reboot in primele 60s (interval implicit de scriere in flash)
+        - delay: 100ms
+        - lambda: 'global_preferences->sync();'
   
   - platform: template
     name: "Min Voltage Threshold"
@@ -655,3 +677,7 @@ number:
         - logger.log:
             format: "Min voltage threshold set to %.0fV"
             args: ['x']
+        # FIX: flush explicit in NVS - altfel valoarea s-ar pierde la un
+        # reboot in primele 60s (interval implicit de scriere in flash)
+        - delay: 100ms
+        - lambda: 'global_preferences->sync();'
