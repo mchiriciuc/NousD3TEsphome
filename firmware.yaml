@@ -88,6 +88,11 @@ esp32:
   framework:
     type: esp-idf
 
+# TEMPORAR (diagnostic): interval lung, ca flush-ul periodic sa nu mai poata
+# masca efectul lui sync(). De scos dupa test.
+preferences:
+  flash_write_interval: 300s
+
 
 # ============================================
 # CONNECTIVITY
@@ -470,6 +475,9 @@ script:
                   # sync explicit: o iteratie de loop, apoi flush in NVS
                   - delay: 100ms
                   - lambda: 'global_preferences->sync();'
+                  - logger.log:
+                      format: "SYNC executed (relay ON)"
+                      level: WARN
                 else:
                   - output.turn_on: relay_1
                   - delay: 50ms
@@ -482,6 +490,9 @@ script:
                   # sync explicit: o iteratie de loop, apoi flush in NVS
                   - delay: 100ms
                   - lambda: 'global_preferences->sync();'
+                  - logger.log:
+                      format: "SYNC executed (relay OFF)"
+                      level: WARN
 
 # ============================================
 # SWITCHES
@@ -498,9 +509,15 @@ switch:
     on_turn_on:
       - delay: 100ms
       - lambda: 'global_preferences->sync();'
+      - logger.log:
+          format: "SYNC executed (remember ON)"
+          level: WARN
     on_turn_off:
       - delay: 100ms
       - lambda: 'global_preferences->sync();'
+      - logger.log:
+          format: "SYNC executed (remember OFF)"
+          level: WARN
 
   - platform: template
     name: "Switch"
@@ -546,6 +563,12 @@ switch:
 # ============================================
 
 button:
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    icon: "mdi:restart"
+    entity_category: diagnostic
+
   - platform: factory_reset
     name: "Factory Reset"
     entity_category: config
@@ -604,6 +627,9 @@ number:
             args: ['x']
         - delay: 100ms
         - lambda: 'global_preferences->sync();'
+        - logger.log:
+            format: "SYNC executed (max temp)"
+            level: WARN
   
  
   - platform: template
@@ -626,6 +652,9 @@ number:
             args: ['x']
         - delay: 100ms
         - lambda: 'global_preferences->sync();'
+        - logger.log:
+            format: "SYNC executed (max current)"
+            level: WARN
   
   - platform: template
     name: "Max Voltage Threshold"
@@ -647,6 +676,9 @@ number:
             args: ['x']
         - delay: 100ms
         - lambda: 'global_preferences->sync();'
+        - logger.log:
+            format: "SYNC executed (max voltage)"
+            level: WARN
   
   - platform: template
     name: "Min Voltage Threshold"
@@ -668,3 +700,6 @@ number:
             args: ['x']
         - delay: 100ms
         - lambda: 'global_preferences->sync();'
+        - logger.log:
+            format: "SYNC executed (min voltage)"
+            level: WARN
