@@ -56,21 +56,21 @@ esphome:
   project:
     name: "nous.d3t-25a"
     version: "2.0.0"
-  on_boot: 
+  on_boot:
+    # FIX: priority -100 => ruleaza dupa ce switch-urile template si-au
+    # restaurat starea din flash (default 600 = DATA, prea devreme)
+    priority: -100
     then:
-      - lambda: |-
-          if (!id(remember_last_state).state) {
-            id(switch_turn_off).execute();
-          }
-          else {
-            if (!id(switch_last_state)) {
-              id(switch_turn_off).execute();
-            }
-            else {
-              id(switch_turn_on).execute();          
-            }            
-          }      
-          
+      # FIX: se comanda entitatea main_relay, nu direct scripturile,
+      # ca sa nu ramana starea entitatii desincronizata de releul fizic
+      - if:
+          condition:
+            lambda: 'return id(remember_last_state).state && id(switch_last_state);'
+          then:
+            - switch.turn_on: main_relay
+          else:
+            - switch.turn_off: main_relay
+
 
 esp32:
   board: esp32dev
@@ -93,7 +93,8 @@ logger:
     resistance: ERROR
 
 api:
-  reboot_timeout: 30s
+  # FIX: 30s provoca boot-loop cand HA e indisponibil
+  reboot_timeout: 15min
     
 
 ota:
@@ -466,7 +467,9 @@ switch:
     turn_on_action:
       - if:
           condition:
-            lambda: 'return id(internal_temperature).state < id(max_temp_threshold).state;'
+            # FIX: la boot senzorul NTC e NAN; orice comparatie cu NAN e false,
+            # deci butonul parea "mort" pana venea prima citire de temperatura
+            lambda: 'return isnan(id(internal_temperature).state) || id(internal_temperature).state < id(max_temp_threshold).state;'
           then:
             - script.execute: switch_turn_on
           else:
