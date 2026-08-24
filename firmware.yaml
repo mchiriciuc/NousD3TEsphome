@@ -445,6 +445,11 @@ script:
             - light.turn_on: red_light_led
             - logger.log: "Relay turned ON"
             - lambda: 'id(switch_last_state)=true;'
+            # FIX: RestoringGlobalsComponent muta valoarea in obiectul de
+            # preferinte abia in loop(), deci sync() trebuie sa vina dupa
+            # cel putin o iteratie - altfel s-ar salva valoarea veche
+            - delay: 100ms
+            - lambda: 'global_preferences->sync();'
           else:
             - output.turn_on: relay_1
             - delay: 50ms
@@ -454,6 +459,9 @@ script:
             - output.turn_off: relay_1
             - logger.log: "Relay turned OFF"
             - lambda: 'id(switch_last_state)=false;'
+            # FIX: acelasi motiv ca pe ramura ON
+            - delay: 100ms
+            - lambda: 'global_preferences->sync();'
 
 # ============================================
 # SWITCHES
