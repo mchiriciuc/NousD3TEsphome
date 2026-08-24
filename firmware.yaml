@@ -91,7 +91,7 @@ esp32:
 # TEMPORAR (diagnostic): interval lung, ca flush-ul periodic sa nu mai poata
 # masca efectul lui sync(). De scos dupa test.
 preferences:
-  flash_write_interval: 300s
+  flash_write_interval: never
 
 
 # ============================================
