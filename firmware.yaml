@@ -161,279 +161,279 @@ sensor:
       state_class: measurement
       on_value:
         then:
-            - if:
-                condition:
-                  lambda: 'return x > id(max_voltage_threshold).state;'
-                then:
-                  - switch.turn_off: main_relay
-                  - logger.log:
-                      format: "CRITICAL: Overvoltage detected! %.1fV > %.1fV - Relay disabled."
-                      args: ['x', 'id(max_voltage_threshold).state']
-                  - homeassistant.event:
-                      event: esphome.overvoltage
-                      data:
-                        device: "${friendly_name}"
-                        voltage: !lambda 'return x;'
-                        threshold: !lambda 'return id(max_voltage_threshold).state;'
-            - if:
-                condition:
-                  lambda: 'return x < id(min_voltage_threshold).state;'
-                then:
-                  - switch.turn_off: main_relay
-                  - logger.log:
-                      format: "CRITICAL: Undervoltage detected! %.1fV < %.1fV - Relay disabled."
-                      args: ['x', 'id(min_voltage_threshold).state']
-                  - homeassistant.event:
-                      event: esphome.undervoltage
-                      data:
-                        device: "${friendly_name}"
-                        voltage: !lambda 'return x;'
-                        threshold: !lambda 'return id(min_voltage_threshold).state;'
-    
-      current:
-        name: "Current"
-        id: current_sensor
-        icon: "mdi:current-ac"
-        unit_of_measurement: A
-        accuracy_decimals: 2
-        device_class: current
-        state_class: measurement
-        on_value:
-          then:
-            - if:
-                condition:
-                  lambda: 'return x > id(max_current_threshold).state;'
-                then:
-                  - switch.turn_off: main_relay
-                  - logger.log:
-                      format: "CRITICAL: Overcurrent detected! %.2fA > %.2fA - Relay disabled."
-                      args: ['x', 'id(max_current_threshold).state']
-                  - homeassistant.event:
-                      event: esphome.overcurrent
-                      data:
-                        device: "${friendly_name}"
-                        current: !lambda 'return x;'
-                        threshold: !lambda 'return id(max_current_threshold).state;'
-    
-      power:
-        name: "Power"
-        id: power_sensor
-        icon: "mdi:flash-outline"
-        unit_of_measurement: W
-        accuracy_decimals: 0
-        device_class: power
-        state_class: measurement
-        filters:
-          - lambda: |-
-              return abs(x);        
-        on_value: 
-          then:
-            lambda: |-
-              id(apparent_power).update();
-              id(reactive_power).update();
-        
-      frequency:
-        name: "Frequency"
-        id: frequency_sensor
-        icon: "mdi:sine-wave"
-        unit_of_measurement: Hz
-        accuracy_decimals: 1
-        device_class: frequency
-        state_class: measurement
-        filters:
-          - throttle_average: 5s
-
-    # ============================================
-    # TEMPERATURE MONITORING (NTC)
-    # ============================================
+          - if:
+              condition:
+                lambda: 'return x > id(max_voltage_threshold).state;'
+              then:
+                - switch.turn_off: main_relay
+                - logger.log:
+                    format: "CRITICAL: Overvoltage detected! %.1fV > %.1fV - Relay disabled."
+                    args: ['x', 'id(max_voltage_threshold).state']
+                - homeassistant.event:
+                    event: esphome.overvoltage
+                    data:
+                      device: "${friendly_name}"
+                      voltage: !lambda 'return x;'
+                      threshold: !lambda 'return id(max_voltage_threshold).state;'
+          - if:
+              condition:
+                lambda: 'return x < id(min_voltage_threshold).state;'
+              then:
+                - switch.turn_off: main_relay
+                - logger.log:
+                    format: "CRITICAL: Undervoltage detected! %.1fV < %.1fV - Relay disabled."
+                    args: ['x', 'id(min_voltage_threshold).state']
+                - homeassistant.event:
+                    event: esphome.undervoltage
+                    data:
+                      device: "${friendly_name}"
+                      voltage: !lambda 'return x;'
+                      threshold: !lambda 'return id(min_voltage_threshold).state;'
   
-    - platform: adc
-      id: temp_analog_reading
-      pin: ${temp_sensor_pin}
-      attenuation: 12db
-      update_interval: 5s
-      internal: true
-  
-    - platform: resistance
-      id: temp_resistance_reading
-      sensor: temp_analog_reading
-      configuration: DOWNSTREAM
-      resistor: 5.6kOhm
-      internal: true
-  
-    - platform: ntc
-      sensor: temp_resistance_reading
-      name: "Temperature"
-      id: internal_temperature
-      unit_of_measurement: "°C"
-      accuracy_decimals: 1
-      device_class: temperature
+    current:
+      name: "Current"
+      id: current_sensor
+      icon: "mdi:current-ac"
+      unit_of_measurement: A
+      accuracy_decimals: 2
+      device_class: current
       state_class: measurement
-      icon: mdi:thermometer
-      calibration:
-        b_constant: 3950
-        reference_temperature: 25°C
-        reference_resistance: 10kOhm
-      filters:
-        - median:
-            window_size: 7
-            send_every: 4
-            send_first_at: 2
       on_value:
         then:
           - if:
               condition:
-                lambda: 'return x > id(max_temp_threshold).state;'
+                lambda: 'return x > id(max_current_threshold).state;'
               then:
                 - switch.turn_off: main_relay
                 - logger.log:
-                    format: "CRITICAL: Overheating detected! %.1f°C > %.1f°C - Relay disabled."
-                    args: ['x', 'id(max_temp_threshold).state']
+                    format: "CRITICAL: Overcurrent detected! %.2fA > %.2fA - Relay disabled."
+                    args: ['x', 'id(max_current_threshold).state']
                 - homeassistant.event:
-                    event: esphome.overheat
+                    event: esphome.overcurrent
                     data:
                       device: "${friendly_name}"
-                      temperature: !lambda 'return x;'
-                      threshold: !lambda 'return id(max_temp_threshold).state;'
-
-    # ============================================
-    # CALCULATED SENSORS - Update less frequently
-    # ============================================
+                      current: !lambda 'return x;'
+                      threshold: !lambda 'return id(max_current_threshold).state;'
   
-    - platform: template
-      name: "Apparent Power"
-      id: apparent_power
+    power:
+      name: "Power"
+      id: power_sensor
       icon: "mdi:flash-outline"
-      unit_of_measurement: VA
+      unit_of_measurement: W
       accuracy_decimals: 0
-      device_class: apparent_power
+      device_class: power
       state_class: measurement
-      lambda: |-
-        return id(voltage_sensor).state * id(current_sensor).state;
-   
-    - platform: template
-      name: "Reactive Power"
-      id: reactive_power
-      icon: "mdi:flash-outline"
-      unit_of_measurement: var
-      accuracy_decimals: 0
-      device_class: reactive_power
-      state_class: measurement
-      lambda: |-
-        if (isnan(id(apparent_power).state) || isnan(id(power_sensor).state)) return {};
-        float apparent = id(apparent_power).state;
-        float active = id(power_sensor).state;
-        if ( (apparent > active )) {
-          float reactive = sqrt(apparent * apparent - active * active);
-          return reactive;
-        } else {
-          return 0.0;
-        }
-   
-    - platform: template
-      name: "Power Factor"
-      id: power_factor
-      icon: "mdi:math-cos"
-      accuracy_decimals: 2
-      device_class: power_factor
-      state_class: measurement
-      lambda: |-
-        if (id(apparent_power).state > 0) {
-          return id(power_sensor).state / id(apparent_power).state;
-        } else {
-          return 0.0;
-        }
       filters:
-        - clamp:
-            min_value: 0.0
-            max_value: 1.0
+        - lambda: |-
+            return abs(x);        
+      on_value: 
+        then:
+          lambda: |-
+            id(apparent_power).update();
+            id(reactive_power).update();
+      
+    frequency:
+      name: "Frequency"
+      id: frequency_sensor
+      icon: "mdi:sine-wave"
+      unit_of_measurement: Hz
+      accuracy_decimals: 1
+      device_class: frequency
+      state_class: measurement
+      filters:
+        - throttle_average: 5s
 
-    # ============================================
-    # SYSTEM MONITORING
-    # ============================================
-  
-    - platform: wifi_signal
-      name: "WiFi Signal"
-      id: wifi_signal_db
-      icon: "mdi:signal-variant"
-      update_interval: 60s
+  # ============================================
+  # TEMPERATURE MONITORING (NTC)
+  # ============================================
+
+  - platform: adc
+    id: temp_analog_reading
+    pin: ${temp_sensor_pin}
+    attenuation: 12db
+    update_interval: 5s
+    internal: true
+
+  - platform: resistance
+    id: temp_resistance_reading
+    sensor: temp_analog_reading
+    configuration: DOWNSTREAM
+    resistor: 5.6kOhm
+    internal: true
+
+  - platform: ntc
+    sensor: temp_resistance_reading
+    name: "Temperature"
+    id: internal_temperature
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: temperature
+    state_class: measurement
+    icon: mdi:thermometer
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+    filters:
+      - median:
+          window_size: 7
+          send_every: 4
+          send_first_at: 2
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return x > id(max_temp_threshold).state;'
+            then:
+              - switch.turn_off: main_relay
+              - logger.log:
+                  format: "CRITICAL: Overheating detected! %.1f°C > %.1f°C - Relay disabled."
+                  args: ['x', 'id(max_temp_threshold).state']
+              - homeassistant.event:
+                  event: esphome.overheat
+                  data:
+                    device: "${friendly_name}"
+                    temperature: !lambda 'return x;'
+                    threshold: !lambda 'return id(max_temp_threshold).state;'
+
+  # ============================================
+  # CALCULATED SENSORS - Update less frequently
+  # ============================================
+
+  - platform: template
+    name: "Apparent Power"
+    id: apparent_power
+    icon: "mdi:flash-outline"
+    unit_of_measurement: VA
+    accuracy_decimals: 0
+    device_class: apparent_power
+    state_class: measurement
+    lambda: |-
+      return id(voltage_sensor).state * id(current_sensor).state;
+ 
+  - platform: template
+    name: "Reactive Power"
+    id: reactive_power
+    icon: "mdi:flash-outline"
+    unit_of_measurement: var
+    accuracy_decimals: 0
+    device_class: reactive_power
+    state_class: measurement
+    lambda: |-
+      if (isnan(id(apparent_power).state) || isnan(id(power_sensor).state)) return {};
+      float apparent = id(apparent_power).state;
+      float active = id(power_sensor).state;
+      if ( (apparent > active )) {
+        float reactive = sqrt(apparent * apparent - active * active);
+        return reactive;
+      } else {
+        return 0.0;
+      }
+ 
+  - platform: template
+    name: "Power Factor"
+    id: power_factor
+    icon: "mdi:math-cos"
+    accuracy_decimals: 2
+    device_class: power_factor
+    state_class: measurement
+    lambda: |-
+      if (id(apparent_power).state > 0) {
+        return id(power_sensor).state / id(apparent_power).state;
+      } else {
+        return 0.0;
+      }
+    filters:
+      - clamp:
+          min_value: 0.0
+          max_value: 1.0
+
+  # ============================================
+  # SYSTEM MONITORING
+  # ============================================
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    id: wifi_signal_db
+    icon: "mdi:signal-variant"
+    update_interval: 60s
+    entity_category: diagnostic
+
+
+# ============================================
+# TEXT SENSORS
+# ============================================
+
+text_sensor:
+
+  - platform: uptime
+    name: "Uptime"
+    id: uptime_sensor
+    icon: "mdi:clipboard-text-clock-outline"
+    entity_category: diagnostic    
+    format:
+      separator: " "
+      expand: true  
+
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      icon: "mdi:ip-network-outline"      
       entity_category: diagnostic
-  
-
-  # ============================================
-  # TEXT SENSORS
-  # ============================================
-
-  text_sensor:
-
-    - platform: uptime
-      name: "Uptime"
-      id: uptime_sensor
-      icon: "mdi:clipboard-text-clock-outline"
-      entity_category: diagnostic    
-      format:
-        separator: " "
-        expand: true  
-
-    - platform: wifi_info
-      ip_address:
-        name: "IP Address"
-        icon: "mdi:ip-network-outline"      
-        entity_category: diagnostic
-      ssid:
-        name: "Connected SSID"
-        icon: "mdi:wifi-settings"
-        entity_category: diagnostic
-      mac_address:
-        name: "MAC Address"
-        entity_category: diagnostic
-        icon: "mdi:wifi-settings"
-
-    - platform: version
-      name: "ESPHome Version"
+    ssid:
+      name: "Connected SSID"
+      icon: "mdi:wifi-settings"
       entity_category: diagnostic
-      hide_timestamp: true
+    mac_address:
+      name: "MAC Address"
+      entity_category: diagnostic
+      icon: "mdi:wifi-settings"
 
-  # ============================================
-  # OUTPUTS & LIGHTS
-  # ============================================
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+    hide_timestamp: true
 
-  output:
-    - platform: gpio
-      id: relay_1
-      pin: 
-        number: ${relay_on_pin}
-        ignore_strapping_warning: true
-  
-    - platform: gpio
-      id: relay_2
-      pin: 
-        number: ${relay_off_pin}
-        ignore_strapping_warning: true      
-  
-    - platform: gpio
-      id: red_led
-      pin:
-        number: ${red_led_pin}
-        inverted: true
-        ignore_strapping_warning: true
+# ============================================
+# OUTPUTS & LIGHTS
+# ============================================
 
-  light:
-    - platform: binary
-      output: red_led
-      id: red_light_led
-      internal: true
-  
-    - platform: status_led
-      name: "Status LED"
-      id: led_status
-      pin:
-        number: ${status_led_pin}
-        inverted: true
-        ignore_strapping_warning: true
-      entity_category: config
-      internal: true
-      restore_mode: RESTORE_DEFAULT_ON
+output:
+  - platform: gpio
+    id: relay_1
+    pin: 
+      number: ${relay_on_pin}
+      ignore_strapping_warning: true
+
+  - platform: gpio
+    id: relay_2
+    pin: 
+      number: ${relay_off_pin}
+      ignore_strapping_warning: true      
+
+  - platform: gpio
+    id: red_led
+    pin:
+      number: ${red_led_pin}
+      inverted: true
+      ignore_strapping_warning: true
+
+light:
+  - platform: binary
+    output: red_led
+    id: red_light_led
+    internal: true
+
+  - platform: status_led
+    name: "Status LED"
+    id: led_status
+    pin:
+      number: ${status_led_pin}
+      inverted: true
+      ignore_strapping_warning: true
+    entity_category: config
+    internal: true
+    restore_mode: RESTORE_DEFAULT_ON
 
 # ============================================
 # SCRIPTS
