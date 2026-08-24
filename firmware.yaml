@@ -91,7 +91,7 @@ esp32:
 # Dezactiveaza temporizarea scrierii in flash: fara asta, o stare schimbata
 # si o intrerupere de alimentare in urmatorul minut se pierdeau.
 preferences:
-  flash_write_interval: never
+  flash_write_interval: 1ms
 
 
 # ============================================
