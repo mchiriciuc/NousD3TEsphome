@@ -41,7 +41,7 @@ substitutions:
 globals:
   - id: switch_last_state
     type: bool
-    initial_value: 'true'
+    initial_value: 'false'
     restore_value: True
 
 # ============================================
@@ -63,7 +63,7 @@ esphome:
     then:
       # FIX: asteapta incarcarea alimentarii bobinei releului bistabil,
       # altfel impulsul de la boot e prea slab si contactul nu comuta
-      - delay: 3s
+      - delay: 1s
       # FIX: se comanda entitatea main_relay, nu direct scripturile,
       # ca sa nu ramana starea entitatii desincronizata de releul fizic
       - if:
