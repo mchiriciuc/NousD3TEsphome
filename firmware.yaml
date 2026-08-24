@@ -474,10 +474,9 @@ script:
                   - lambda: 'id(switch_last_state)=true;'
                   # sync explicit: o iteratie de loop, apoi flush in NVS
                   - delay: 100ms
-                  - lambda: 'global_preferences->sync();'
-                  - logger.log:
-                      format: "SYNC executed (relay ON)"
-                      level: WARN
+                  - lambda: |-
+                      ESP_LOGW("synctest", "sync() [relay ON] -> %s",
+                               global_preferences->sync() ? "OK" : "FAIL");
                 else:
                   - output.turn_on: relay_1
                   - delay: 50ms
@@ -489,10 +488,9 @@ script:
                   - lambda: 'id(switch_last_state)=false;'
                   # sync explicit: o iteratie de loop, apoi flush in NVS
                   - delay: 100ms
-                  - lambda: 'global_preferences->sync();'
-                  - logger.log:
-                      format: "SYNC executed (relay OFF)"
-                      level: WARN
+                  - lambda: |-
+                      ESP_LOGW("synctest", "sync() [relay OFF] -> %s",
+                               global_preferences->sync() ? "OK" : "FAIL");
 
 # ============================================
 # SWITCHES
@@ -508,16 +506,14 @@ switch:
     entity_category: config
     on_turn_on:
       - delay: 100ms
-      - lambda: 'global_preferences->sync();'
-      - logger.log:
-          format: "SYNC executed (remember ON)"
-          level: WARN
+      - lambda: |-
+          ESP_LOGW("synctest", "sync() [remember ON] -> %s",
+                   global_preferences->sync() ? "OK" : "FAIL");
     on_turn_off:
       - delay: 100ms
-      - lambda: 'global_preferences->sync();'
-      - logger.log:
-          format: "SYNC executed (remember OFF)"
-          level: WARN
+      - lambda: |-
+          ESP_LOGW("synctest", "sync() [remember OFF] -> %s",
+                   global_preferences->sync() ? "OK" : "FAIL");
 
   - platform: template
     name: "Switch"
@@ -626,10 +622,9 @@ number:
             format: "Max temperature threshold set to %.1f°C"
             args: ['x']
         - delay: 100ms
-        - lambda: 'global_preferences->sync();'
-        - logger.log:
-            format: "SYNC executed (max temp)"
-            level: WARN
+        - lambda: |-
+            ESP_LOGW("synctest", "sync() [max temp] -> %s",
+                     global_preferences->sync() ? "OK" : "FAIL");
   
  
   - platform: template
@@ -651,10 +646,9 @@ number:
             format: "Max current threshold set to %.1fA"
             args: ['x']
         - delay: 100ms
-        - lambda: 'global_preferences->sync();'
-        - logger.log:
-            format: "SYNC executed (max current)"
-            level: WARN
+        - lambda: |-
+            ESP_LOGW("synctest", "sync() [max current] -> %s",
+                     global_preferences->sync() ? "OK" : "FAIL");
   
   - platform: template
     name: "Max Voltage Threshold"
@@ -675,10 +669,9 @@ number:
             format: "Max voltage threshold set to %.0fV"
             args: ['x']
         - delay: 100ms
-        - lambda: 'global_preferences->sync();'
-        - logger.log:
-            format: "SYNC executed (max voltage)"
-            level: WARN
+        - lambda: |-
+            ESP_LOGW("synctest", "sync() [max voltage] -> %s",
+                     global_preferences->sync() ? "OK" : "FAIL");
   
   - platform: template
     name: "Min Voltage Threshold"
@@ -699,7 +692,6 @@ number:
             format: "Min voltage threshold set to %.0fV"
             args: ['x']
         - delay: 100ms
-        - lambda: 'global_preferences->sync();'
-        - logger.log:
-            format: "SYNC executed (min voltage)"
-            level: WARN
+        - lambda: |-
+            ESP_LOGW("synctest", "sync() [min voltage] -> %s",
+                     global_preferences->sync() ? "OK" : "FAIL");
