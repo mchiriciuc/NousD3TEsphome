@@ -61,6 +61,9 @@ esphome:
     # restaurat starea din flash (default 600 = DATA, prea devreme)
     priority: -100
     then:
+      # FIX: asteapta incarcarea alimentarii bobinei releului bistabil,
+      # altfel impulsul de la boot e prea slab si contactul nu comuta
+      - delay: 3s
       # FIX: se comanda entitatea main_relay, nu direct scripturile,
       # ca sa nu ramana starea entitatii desincronizata de releul fizic
       - if:
@@ -421,28 +424,36 @@ light:
 # ============================================
 # SCRIPTS
 # ============================================
+# FIX: cele doua scripturi separate (fiecare mode: single) puteau rula
+# simultan la boot => secvente de punte H intrepatrunse si switch_last_state
+# suprascris haotic. Comasate intr-unul singur, cu mode: restart.
 script:
-  - id: switch_turn_on
-    then: 
-      - output.turn_off: relay_1
-      - delay: 50ms
-      - output.turn_on: relay_2
-      - delay: 200ms
-      - output.turn_off: relay_2
-      - light.turn_on: red_light_led
-      - logger.log: "Relay turned ON"      
-      - lambda: 'id(switch_last_state)=true;'
-          
-  - id: switch_turn_off
+  - id: apply_relay
+    mode: restart
+    parameters:
+      state: bool
     then:
-      - output.turn_on: relay_1
-      - delay: 50ms
-      - output.turn_off: relay_2
-      - light.turn_off: red_light_led
-      - delay: 200ms 
-      - output.turn_off: relay_1
-      - logger.log: "Relay turned OFF"
-      - lambda: 'id(switch_last_state)=false;'
+      - if:
+          condition:
+            lambda: 'return state;'
+          then:
+            - output.turn_off: relay_1
+            - delay: 50ms
+            - output.turn_on: relay_2
+            - delay: 200ms
+            - output.turn_off: relay_2
+            - light.turn_on: red_light_led
+            - logger.log: "Relay turned ON"
+            - lambda: 'id(switch_last_state)=true;'
+          else:
+            - output.turn_on: relay_1
+            - delay: 50ms
+            - output.turn_off: relay_2
+            - light.turn_off: red_light_led
+            - delay: 200ms
+            - output.turn_off: relay_1
+            - logger.log: "Relay turned OFF"
+            - lambda: 'id(switch_last_state)=false;'
 
 # ============================================
 # SWITCHES
@@ -461,7 +472,10 @@ switch:
     id: main_relay
     icon: "mdi:power"
     device_class: switch
-    restore_mode: RESTORE_DEFAULT_OFF
+    # FIX: RESTORE_DEFAULT_OFF apela write_state() in setup (prioritate ~600),
+    # deci pornea secventa OFF inainte de on_boot. Singura autoritate asupra
+    # starii initiale ramane on_boot.
+    restore_mode: DISABLED
     optimistic: true
     
     turn_on_action:
@@ -471,7 +485,9 @@ switch:
             # deci butonul parea "mort" pana venea prima citire de temperatura
             lambda: 'return isnan(id(internal_temperature).state) || id(internal_temperature).state < id(max_temp_threshold).state;'
           then:
-            - script.execute: switch_turn_on
+            - script.execute:
+                id: apply_relay
+                state: true
           else:
             - logger.log:
                 format: "Cannot turn on: Temperature %.1f°C exceeds threshold %.1f°C"
@@ -486,7 +502,9 @@ switch:
                            to_string(id(max_temp_threshold).state) + "°C";
     
     turn_off_action:
-      - script.execute: switch_turn_off
+      - script.execute:
+          id: apply_relay
+          state: false
 
 # ============================================
 # BUTTONS
