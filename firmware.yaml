@@ -44,9 +44,9 @@ globals:
     initial_value: 'false'
     restore_value: True
 
-  # FIX: la boot pozitia fizica a releului bistabil e necunoscuta, deci
-  # prima comanda trebuie executata neconditionat. Dupa ea, redundantele
-  # pot fi ignorate in siguranta.
+  # At boot the physical position of the latching relay is unknown, so the
+  # first command must always be executed. After that, redundant commands
+  # can safely be ignored.
   - id: relay_state_applied
     type: bool
     initial_value: 'false'
@@ -65,15 +65,15 @@ esphome:
     name: "nous.d3t-25a"
     version: "2.0.0"
   on_boot:
-    # FIX: priority -100 => ruleaza dupa ce switch-urile template si-au
-    # restaurat starea din flash (default 600 = DATA, prea devreme)
+    # priority -100 => runs after the template switches have restored their
+    # state from flash (default 600 = DATA, which is too early)
     priority: -100
     then:
-      # FIX: asteapta incarcarea alimentarii bobinei releului bistabil,
-      # altfel impulsul de la boot e prea slab si contactul nu comuta
+      # Let the relay coil supply charge up; without this the boot pulse is
+      # too weak and the contact does not actually switch.
       - delay: 1s
-      # FIX: se comanda entitatea main_relay, nu direct scripturile,
-      # ca sa nu ramana starea entitatii desincronizata de releul fizic
+      # Drive the main_relay entity rather than the scripts directly, so the
+      # entity state cannot drift out of sync with the physical relay.
       - if:
           condition:
             lambda: 'return id(remember_last_state).state && id(switch_last_state);'
@@ -88,8 +88,10 @@ esp32:
   framework:
     type: esp-idf
 
-# Dezactiveaza temporizarea scrierii in flash: fara asta, o stare schimbata
-# si o intrerupere de alimentare in urmatorul minut se pierdeau.
+# Write preferences to flash immediately. With the 1min default, a state
+# change followed by a power cut within that minute was lost.
+# Note: 0s is mentioned in the docs but rejected by the schema (1ms minimum);
+# "never" disables automatic writes altogether, it does not disable throttling.
 preferences:
   flash_write_interval: 1ms
 
@@ -109,7 +111,7 @@ logger:
     resistance: ERROR
 
 api:
-  # FIX: 30s provoca boot-loop cand HA e indisponibil
+  # 30s caused a reboot loop whenever Home Assistant was unreachable
   reboot_timeout: 15min
     
 
@@ -437,20 +439,19 @@ light:
 # ============================================
 # SCRIPTS
 # ============================================
-# FIX: cele doua scripturi separate (fiecare mode: single) puteau rula
-# simultan la boot => secvente de punte H intrepatrunse si switch_last_state
-# suprascris haotic. Comasate intr-unul singur, cu mode: restart.
+# Two separate scripts (each mode: single) could run concurrently at boot,
+# interleaving the H-bridge sequences and clobbering switch_last_state.
+# Merged into a single script with mode: restart.
 script:
   - id: apply_relay
     mode: restart
     parameters:
       state: bool
     then:
-      # FIX: protectiile apeleaza switch.turn_off la fiecare citire (1/s) cat
-      # timp conditia persista. Cu mode: restart, fiecare apel abandona
-      # secventa precedenta inainte de "output.turn_off: relay_1", lasand
-      # bobina alimentata continuu. Ies devreme daca starea ceruta e deja cea
-      # curenta.
+      # The protections call switch.turn_off on every reading (1/s) for as long
+      # as the condition holds. With mode: restart each call aborts the previous
+      # sequence before "output.turn_off: relay_1", leaving the coil energised
+      # continuously. Bail out early when the requested state is already current.
       - if:
           condition:
             lambda: 'return id(relay_state_applied) && state == id(switch_last_state);'
@@ -494,7 +495,7 @@ switch:
     name: "Remember last state"
     device_class: switch
     optimistic: True
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_mode: RESTORE_DEFAULT_ON
     entity_category: config
 
   - platform: template
@@ -502,17 +503,17 @@ switch:
     id: main_relay
     icon: "mdi:power"
     device_class: switch
-    # FIX: RESTORE_DEFAULT_OFF apela write_state() in setup (prioritate ~600),
-    # deci pornea secventa OFF inainte de on_boot. Singura autoritate asupra
-    # starii initiale ramane on_boot.
+    # RESTORE_DEFAULT_OFF called write_state() during setup (priority ~600),
+    # firing the OFF sequence before on_boot ran. on_boot is now the single
+    # authority over the initial state.
     restore_mode: DISABLED
     optimistic: true
     
     turn_on_action:
       - if:
           condition:
-            # FIX: la boot senzorul NTC e NAN; orice comparatie cu NAN e false,
-            # deci butonul parea "mort" pana venea prima citire de temperatura
+            # The NTC sensor reads NAN at boot and any comparison with NAN is
+            # false, so the button appeared dead until the first temperature reading
             lambda: 'return isnan(id(internal_temperature).state) || id(internal_temperature).state < id(max_temp_threshold).state;'
           then:
             - script.execute:
